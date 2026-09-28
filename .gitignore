@@ -10,3 +10,6 @@ OurDays/
 # 临时文件
 *.log
 *.tmp
+
+# 同步脚本的临时输出（工作流内部使用，不提交）
+synced-versions.txt
