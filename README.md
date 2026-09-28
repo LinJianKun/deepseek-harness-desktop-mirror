@@ -21,6 +21,31 @@
 - 工作流：[.github/workflows/sync-upstream.yml](./.github/workflows/sync-upstream.yml)
 - 同步不会修改下载到的二进制，仅原样转发并记录 SHA-256。
 
+### 启用工作流需要 workflow scope
+
+**GitHub 不允许只具备 `repo` scope 的 token 推送 `.github/workflows/` 下的文件**（API 会返回 `404`，这是 GitHub 有意的模糊响应，并非路径错误）。若工作流尚未出现在仓库中，用以下任一方式启用：
+
+**方式一：为本地 `gh` 补授权（推荐，一次性）**
+
+```bash
+gh auth refresh -h github.com -s workflow
+```
+
+在浏览器中确认后，再执行 `./release.sh` 即可推送工作流文件。
+
+**方式二：网页端手动添加**
+
+在仓库页面新建文件 `.github/workflows/sync-upstream.yml`，内容复制本地同名文件。注意不要改动路径与文件名，否则 Actions 不会识别。
+
+启用后可在仓库 **Actions** 页面看到 `Sync upstream releases`，支持手动触发：
+
+- 留空 → 同步上游最新版本
+- 填版本号 → 同步指定版本
+- 勾选"回填所有缺失的历史版本" → 补齐全部历史
+- 勾选"仅探测" → 只检查不下载
+
+> 定时任务为每 6 小时一次。GitHub 会在仓库连续 60 天无提交后停用定时工作流，因此工作流每次运行都会提交心跳文件 `heartbeat.txt` 以保持活跃。
+
 ## 平台说明
 
 | 平台 | 安装包格式 | 适用系统 |
