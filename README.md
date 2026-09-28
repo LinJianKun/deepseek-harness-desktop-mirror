@@ -20,16 +20,25 @@
 | `deepseek-harness-0.1.7-rc.2-mac-arm64.dmg` | macOS 13.0+ / Apple Silicon (arm64) | 351 MB | macOS 磁盘映像。打开后把 DeepSeek Harness 拖入「应用程序」完成安装 |
 | `deepseek-harness-0.1.7-rc.2-win-x64.exe` | Windows 10/11 x64 | 275 MB | Windows 安装程序（NSIS）。双击后按向导完成安装 |
 
+两个文件均由官方地址 `download.deepseek.com` 取得，未经修改，SHA-256 与官方原文一致（见 [校验值](#校验值)）。官方直链见下一节。
+
 **平台限制**：macOS 包仅支持 Apple Silicon（M 系列芯片），Intel Mac 无法使用，请另行获取 x64 版本。Windows 包仅支持 64 位系统。
 
 ## 官方下载渠道
 
-官方渠道请以这两个来源为准（本镜像不保证与最新版本同步）：
+**能访问下面地址时，请优先从官方下载，不要使用本镜像。**
+
+| 平台 | 官方直链 |
+| --- | --- |
+| Windows x64 | <https://download.deepseek.com/dsh-desk/bin/win-x64/deepseek-harness-0.1.7-rc.2-win-x64.exe> |
+| macOS arm64 | <https://download.deepseek.com/dsh-desk/bin/mac-arm64/deepseek-harness-0.1.7-rc.2-mac-arm64.dmg> |
+
+其他官方来源：
 
 - 上游仓库：<https://github.com/deepseek-ai/deepseek-harness>
 - 官方发布页：<https://github.com/deepseek-ai/deepseek-harness/releases>
 
-请以官方发布页为准。本镜像可能滞后于官方最新版本。
+上述官方直链的下载产物与本仓库镜像**逐字节相同**（SHA-256 已比对一致），可任选其一。本镜像可能滞后于官方最新版本，请以官方为准。
 
 ## 版本信息
 
