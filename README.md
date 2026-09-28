@@ -71,6 +71,61 @@ Get-FileHash .\deepseek-harness-0.1.7-rc.2-win-x64.exe -Algorithm SHA256
 
 输出的哈希值必须与上表完全一致。**不一致请立即删除文件，不要安装。**
 
+## 网络白名单与下载中断排查
+
+> 如果你的网络有域名白名单限制，**请先读这一节**——下载失败通常不是链接失效，而是重定向到了另一个域名。
+
+两条下载路径所需的域名**不同**：
+
+### 路径一：官方直链
+
+```
+download.deepseek.com  →  HTTP 200（直接返回文件，无重定向）
+```
+
+**只需放行 `download.deepseek.com` 一个域名。** 这是最省事的路径，若该域名可访问就不要用本镜像。
+
+### 路径二：GitHub Release（本镜像）
+
+```
+github.com  →  HTTP 302  →  release-assets.githubusercontent.com  →  HTTP 200
+```
+
+**必须同时放行两个域名**：
+
+| 域名 | 作用 | 只放行它会怎样 |
+| --- | --- | --- |
+| `github.com` | 仓库页面、Release 页面、发起下载 | 页面能打开、能搜索，但**点下载会被拦** |
+| `release-assets.githubusercontent.com` | 实际传输安装包字节 | — |
+
+**典型症状**：仓库能访问、能 `git clone` 源码，但点击安装包下载无反应或报错。这不是链接坏了——`github.com` 只负责发出 302 跳转，真正的文件字节由 `release-assets.githubusercontent.com` 传输。若 IT 只放行了 `github.com`，请把第二个域名一并申请。
+
+### 下载中断了怎么办
+
+两个安装包均支持 **HTTP Range 断点续传**（实测返回 `206 Partial Content`），大文件下载中途断开**无需重头开始**：
+
+```bash
+# -C - 表示从已下载的部分继续
+curl -L -C - -O https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.1.7-rc.2/deepseek-harness-0.1.7-rc.2-win-x64.exe
+```
+
+浏览器下载同样可续传，重新点击下载通常会自动接着上次的进度。
+
+### 快速自查
+
+```bash
+# 1. 官方下载域名是否可达
+curl -sI --max-time 20 https://download.deepseek.com/dsh-desk/bin/win-x64/deepseek-harness-0.1.7-rc.2-win-x64.exe | head -1
+# 期望：HTTP/2 200
+
+# 2. GitHub 下载链路是否走通（含跳转，取最终状态码）
+curl -sIL --max-time 20 -o /dev/null -w "%{http_code}\n" \
+  https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.1.7-rc.2/deepseek-harness-0.1.7-rc.2-win-x64.exe
+# 期望：200（若为 403 / 无输出 / 连接超时，说明 release-assets.githubusercontent.com 被拦）
+```
+
+**注意**：不要用裸域名 `https://release-assets.githubusercontent.com` 测试可达性——它会返回 `404`，但这恰恰说明域名是通的（404 是服务器应答，屏蔽通常表现为超时或连接重置）。判断标准是**能否拿到 HTTP 状态码**，而非状态码是否为 200。
+
 ## 安装注意事项
 
 - **macOS**：首次打开若提示"来自未识别开发者"，请在「系统设置 → 隐私与安全性」中允许，或右键点击应用选择「打开」。请勿为此关闭 Gatekeeper。
