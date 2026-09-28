@@ -71,7 +71,9 @@ fi
 
 # ---------- 同步仓库文件 ----------
 # 自动收录版本化文档与同步工具，避免每次新增文件都要改本脚本。
-# 排除：安装包二进制、本地杂项、以及需要 workflow scope 的 .github/
+# 排除：安装包二进制与本地杂项。
+# 注意：.github/workflows/ 下的文件需要 token 具备 workflow scope，
+#       否则 GitHub 会以 404 拒绝推送（不是路径错误）。
 echo "==> 同步仓库文件"
 REPO_FILES=(
   README.md
@@ -81,32 +83,41 @@ REPO_FILES=(
   .gitignore
   .gitattributes
   scripts/sync-upstream.sh
+  .github/workflows/sync-upstream.yml
 )
+
+WORKFLOW_FAILED=0
 
 for f in "${REPO_FILES[@]}"; do
   [ -f "$f" ] || { echo "    跳过（不存在）$f"; continue; }
 
-  # 统一用 LF 换行，避免不同平台提交造成无意义的整文件 diff
   if gh api "repos/$ACCOUNT/$REPO_NAME/contents/$f" >/dev/null 2>&1; then
     SHA_CUR="$(gh api "repos/$ACCOUNT/$REPO_NAME/contents/$f" --jq .sha)"
-    gh api -X PUT "repos/$ACCOUNT/$REPO_NAME/contents/$f" \
-      -f message="chore: update $f" \
-      -f content="$(base64 < "$f" | tr -d '\n')" \
-      -f sha="$SHA_CUR" >/dev/null
-    echo "    已更新 $f"
+    if gh api -X PUT "repos/$ACCOUNT/$REPO_NAME/contents/$f" \
+        -f message="chore: update $f" \
+        -f content="$(base64 < "$f" | tr -d '\n')" \
+        -f sha="$SHA_CUR" >/dev/null 2>&1; then
+      echo "    已更新 $f"
+    else
+      echo "    ❌ 更新失败 $f"
+      case "$f" in .github/workflows/*) WORKFLOW_FAILED=1 ;; esac
+    fi
   else
-    gh api -X PUT "repos/$ACCOUNT/$REPO_NAME/contents/$f" \
-      -f message="chore: add $f" \
-      -f content="$(base64 < "$f" | tr -d '\n')" >/dev/null
-    echo "    已添加 $f"
+    if gh api -X PUT "repos/$ACCOUNT/$REPO_NAME/contents/$f" \
+        -f message="chore: add $f" \
+        -f content="$(base64 < "$f" | tr -d '\n')" >/dev/null 2>&1; then
+      echo "    已添加 $f"
+    else
+      echo "    ❌ 添加失败 $f"
+      case "$f" in .github/workflows/*) WORKFLOW_FAILED=1 ;; esac
+    fi
   fi
 done
 
-# .github/ 下的 workflow 文件需要 token 具备 workflow scope，
-# 普通 repo scope 会被 GitHub 以 404 拒绝。此处只做提示，不视为失败。
-if [ -f ".github/workflows/sync-upstream.yml" ]; then
-  echo "    注意：.github/workflows/sync-upstream.yml 需 workflow scope 才能通过 API 推送"
-  echo "          若本步骤未上传，请在 GitHub 网页端手动添加（见 README 说明）"
+if [ "$WORKFLOW_FAILED" = "1" ]; then
+  echo "    ⚠️  workflow 文件推送失败。该路径需要 token 具备 workflow scope："
+  echo "        gh auth refresh -h github.com -s workflow"
+  echo "        也可在 GitHub 网页端手动添加该文件（见 README 说明）"
 fi
 
 # ---------- 设置 topics（提升可搜索性） ----------
