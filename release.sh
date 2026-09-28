@@ -124,10 +124,27 @@ echo "    已设置"
 # ---------- 建 Release 并上传 ----------
 echo "==> 创建 Release $TAG"
 if gh release view "$TAG" --repo "$ACCOUNT/$REPO_NAME" >/dev/null 2>&1; then
-  echo "    Release 已存在，改为上传/覆盖资产"
-  gh release upload "$TAG" \
-    "$ASSETS_DIR/$DMG" "$ASSETS_DIR/$EXE" \
-    --repo "$ACCOUNT/$REPO_NAME" --clobber
+  # 资产若已存在且字节数一致，跳过上传（避免每次同步文档都重传数百 MB）
+  SKIP_UPLOAD=1
+  for pair in "$DMG:$DMG_SHA" "$EXE:$EXE_SHA"; do
+    name="${pair%%:*}"
+    local_size="$(wc -c < "$ASSETS_DIR/$name" | tr -d ' ')"
+    remote_size="$(gh api "repos/$ACCOUNT/$REPO_NAME/releases/tags/$TAG" \
+      --jq ".assets[] | select(.name==\"$name\") | .size" 2>/dev/null | head -1 || true)"
+    if [ "$local_size" != "$remote_size" ]; then
+      echo "    $name 远端缺失或大小不符，需要上传"
+      SKIP_UPLOAD=0
+    fi
+  done
+
+  if [ "$SKIP_UPLOAD" = "1" ]; then
+    echo "    资产已存在且大小一致，跳过上传"
+  else
+    echo "    上传/覆盖资产"
+    gh release upload "$TAG" \
+      "$ASSETS_DIR/$DMG" "$ASSETS_DIR/$EXE" \
+      --repo "$ACCOUNT/$REPO_NAME" --clobber
+  fi
 else
   gh release create "$TAG" \
     "$ASSETS_DIR/$DMG" "$ASSETS_DIR/$EXE" \
