@@ -113,6 +113,12 @@ asset_exists() {  # $1=tag  $2=文件名
 # ---------- 逐版本处理 ----------
 NEW_ENTRIES="$WORK/new_entries.tsv"   # version|date|dmg_sha|exe_sha|dmg_size|exe_size
 : > "$NEW_ENTRIES"
+
+# 记录本次实际同步的版本，供工作流生成提交信息。
+# 注意不能放在 $WORK 下——退出时会被 trap 清理，工作流就读不到了。
+SYNCED_VERSIONS="${SYNCED_VERSIONS:-./synced-versions.txt}"
+: > "$SYNCED_VERSIONS"
+
 SYNCED=0
 
 while IFS='|' read -r version tag date; do
@@ -219,6 +225,7 @@ EOF
 
   printf '%s|%s|%s|%s|%s|%s\n' \
     "$version" "$date" "$DMG_SHA" "$EXE_SHA" "$DMG_SIZE" "$EXE_SIZE" >> "$NEW_ENTRIES"
+  echo "$version" >> "$SYNCED_VERSIONS"
   SYNCED=$((SYNCED + 1))
   DMG_SHA=""; EXE_SHA=""
 done < "$WORK/todo.tsv"
