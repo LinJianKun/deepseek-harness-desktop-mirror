@@ -1,0 +1,90 @@
+name: Sync upstream releases
+
+# 定时同步 DeepSeek Harness 官方安装包。
+#
+# 触发方式：
+#   - 定时：每 6 小时检查一次上游发布
+#   - 手动：Actions 页面点击 Run workflow，可指定版本或强制同步
+#
+# 注意：GitHub 会在仓库连续 60 天无提交后停用定时工作流。
+# 本工作流每次运行都会提交一个心跳时间戳（heartbeat.txt），以保持其活跃。
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '指定要同步的版本号（留空则同步上游最新版本）'
+        required: false
+        default: ''
+      all:
+        description: '回填所有缺失的历史版本'
+        type: boolean
+        default: false
+      dry_run:
+        description: '仅探测，不下载不上传'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 运行同步脚本
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          README: README.md
+          UPSTREAM_REPO: deepseek-ai/deepseek-harness
+        run: |
+          set -euo pipefail
+          chmod +x scripts/sync-upstream.sh
+
+          ARGS=()
+          if [ "${{ inputs.all }}" = "true" ]; then
+            ARGS+=(--all)
+          elif [ -n "${{ inputs.version }}" ]; then
+            ARGS+=("${{ inputs.version }}")
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+
+          echo "执行：scripts/sync-upstream.sh ${ARGS[*]:-（默认：上游最新版本）}"
+          if [ ${#ARGS[@]} -gt 0 ]; then
+            ./scripts/sync-upstream.sh "${ARGS[@]}"
+          else
+            ./scripts/sync-upstream.sh
+          fi
+
+      - name: 写心跳时间戳
+        run: date -u +'%Y-%m-%dT%H:%M:%SZ' > heartbeat.txt
+
+      - name: 提交 README 与心跳
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add README.md heartbeat.txt
+          if git diff --cached --quiet; then
+            echo "无变更，跳过提交"
+            exit 0
+          fi
+
+          VER="$(git diff --cached -- README.md | grep -oE '^\+.*0\.[0-9]+\.[0-9]+[^ |`]*' | head -1 | tr -d '+| `' || true)"
+          git commit -m "chore(sync): 同步上游发布${VER:+（$VER）} [skip ci]"
+          git push
