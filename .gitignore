@@ -1,0 +1,12 @@
+# 发布仓库只应包含：README.md / LICENSE / NOTICE / release.sh / 安装包
+# 以下为本地杂项，不应提交
+
+# 另一个项目（小日记），不属于本发布仓库
+OurDays/
+
+# macOS
+.DS_Store
+
+# 临时文件
+*.log
+*.tmp
