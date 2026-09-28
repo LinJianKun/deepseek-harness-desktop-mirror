@@ -9,47 +9,65 @@
 
 ## 发布目的
 
-1. **网络可达性**：部分企业/校园网络仅放行白名单域名，官方下载站点不在名单内，导致无法取得安装包。本仓库提供一份在这些环境下可达的副本。
-2. **可复现性**：随包发布 SHA-256 校验值，任何人都能验证下载到的文件与镜像内容一致、未被篡改。
-3. **归档**：预览版（`rc` 版本）在官方渠道更新后往往不再提供，此处保留存档。
+1. **网络可达性**：部分企业/校园网络仅放行白名单域名，官方下载站点（`download.deepseek.com`）不在名单内，导致无法取得安装包。本仓库提供一份在这些环境下可达的副本。
+2. **可复现性**：每个版本均发布 SHA-256 校验值，任何人都能验证下载到的文件与官方原文逐字节一致、未被篡改。
+3. **归档**：官方渠道通常只保留最新版本，此处保留**全部历史版本**。
 
-## 安装包说明
+## 自动同步
 
-| 文件 | 平台 | 大小 | 用途 |
+本仓库由 GitHub Actions 自动同步上游发布：定时读取 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的最新 tag，按版本号从官方下载地址取得对应安装包，校验后发布为本仓库的 Release，并自动更新本文件。
+
+- 同步脚本：[scripts/sync-upstream.sh](./scripts/sync-upstream.sh)
+- 工作流：[.github/workflows/sync-upstream.yml](./.github/workflows/sync-upstream.yml)
+- 同步不会修改下载到的二进制，仅原样转发并记录 SHA-256。
+
+## 平台说明
+
+| 平台 | 安装包格式 | 适用系统 |
+| --- | --- | --- |
+| macOS arm64 | `.dmg` 磁盘映像 | macOS 13.0+，**仅 Apple Silicon（M 系列）**，Intel Mac 不可用 |
+| Windows x64 | `.exe` 安装程序（NSIS） | Windows 10/11 **64 位** |
+
+下载后请务必核对本文件中的 SHA-256 校验值。
+
+---
+
+## 版本列表
+
+<!-- VERSION_TABLE_START -->
+| 版本 | 发布日期 | 校验值 | 详情 |
 | --- | --- | --- | --- |
-| `deepseek-harness-0.1.7-rc.2-mac-arm64.dmg` | macOS 13.0+ / Apple Silicon (arm64) | 351 MB | macOS 磁盘映像。打开后把 DeepSeek Harness 拖入「应用程序」完成安装 |
-| `deepseek-harness-0.1.7-rc.2-win-x64.exe` | Windows 10/11 x64 | 275 MB | Windows 安装程序（NSIS）。双击后按向导完成安装 |
+| `0.2.0-rc.1` | 2026-09-28 | [SHA-256](#020-rc1) | [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/tag/v0.2.0-rc.1) |
+| `0.1.7-rc.2` | 2026-09-24 | [SHA-256](#017-rc2) | [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/tag/v0.1.7-rc.2) |
+<!-- VERSION_TABLE_END -->
 
-两个文件均由官方地址 `download.deepseek.com` 取得，未经修改，SHA-256 与官方原文一致（见 [校验值](#校验值)）。官方直链见下一节。
+每个版本同时发布为本仓库的 [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases)，可直接下载安装包。
 
-**平台限制**：macOS 包仅支持 Apple Silicon（M 系列芯片），Intel Mac 无法使用，请另行获取 x64 版本。Windows 包仅支持 64 位系统。
+## 各版本校验值
 
-## 官方下载渠道
+<!-- VERSION_DETAILS_START -->
+<a id="020-rc1"></a>
 
-**能访问下面地址时，请优先从官方下载，不要使用本镜像。**
+### 0.2.0-rc.1
 
-| 平台 | 官方直链 |
-| --- | --- |
-| Windows x64 | <https://download.deepseek.com/dsh-desk/bin/win-x64/deepseek-harness-0.1.7-rc.2-win-x64.exe> |
-| macOS arm64 | <https://download.deepseek.com/dsh-desk/bin/mac-arm64/deepseek-harness-0.1.7-rc.2-mac-arm64.dmg> |
+发布日期：2026-09-28
 
-其他官方来源：
+```
+SHA-256
+86cea83e41f516bbfb71d634bf62b965e5944723224abf41606ba8d636fe9858  deepseek-harness-0.2.0-rc.1-mac-arm64.dmg
+9dd8538e554d3139998a8458e21c64a6f99470915cbf6cfd22bb71f356c7f399  deepseek-harness-0.2.0-rc.1-win-x64.exe
+```
 
-- 上游仓库：<https://github.com/deepseek-ai/deepseek-harness>
-- 官方发布页：<https://github.com/deepseek-ai/deepseek-harness/releases>
+| 文件 | 平台 | 大小 | 下载 |
+| --- | --- | --- | --- |
+| `deepseek-harness-0.2.0-rc.1-mac-arm64.dmg` | macOS 13+ Apple Silicon | — | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.1/deepseek-harness-0.2.0-rc.1-mac-arm64.dmg) |
+| `deepseek-harness-0.2.0-rc.1-win-x64.exe` | Windows 10/11 x64 | — | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.1/deepseek-harness-0.2.0-rc.1-win-x64.exe) |
 
-上述官方直链的下载产物与本仓库镜像**逐字节相同**（SHA-256 已比对一致），可任选其一。本镜像可能滞后于官方最新版本，请以官方为准。
+<a id="017-rc2"></a>
 
-## 版本信息
+### 0.1.7-rc.2
 
-- 版本号：`0.1.7-rc.2`（预览版）
-- macOS Bundle ID：`com.deepseek.dsh`
-- Windows 安装程序类型：NSIS self-extracting archive
-- 镜像建立日期：2026-09-28
-
-## 校验值
-
-下载后请务必校验，确认文件完整且未被篡改。
+发布日期：2026-09-24
 
 ```
 SHA-256
@@ -57,19 +75,51 @@ SHA-256
 0cf065dc2fc56456448620230581a9072477f0b2562bbc4e1709cdaedd3ceb86  deepseek-harness-0.1.7-rc.2-win-x64.exe
 ```
 
+| 文件 | 平台 | 大小 | 下载 |
+| --- | --- | --- | --- |
+| `deepseek-harness-0.1.7-rc.2-mac-arm64.dmg` | macOS 13+ Apple Silicon | 351 MB | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.1.7-rc.2/deepseek-harness-0.1.7-rc.2-mac-arm64.dmg) |
+| `deepseek-harness-0.1.7-rc.2-win-x64.exe` | Windows 10/11 x64 | 275 MB | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.1.7-rc.2/deepseek-harness-0.1.7-rc.2-win-x64.exe) |
+<!-- VERSION_DETAILS_END -->
+
+## 校验方法
+
 **macOS / Linux：**
 
 ```bash
-shasum -a 256 deepseek-harness-0.1.7-rc.2-mac-arm64.dmg
+shasum -a 256 deepseek-harness-<版本>-mac-arm64.dmg
 ```
 
 **Windows（PowerShell）：**
 
 ```powershell
-Get-FileHash .\deepseek-harness-0.1.7-rc.2-win-x64.exe -Algorithm SHA256
+Get-FileHash .\deepseek-harness-<版本>-win-x64.exe -Algorithm SHA256
 ```
 
-输出的哈希值必须与上表完全一致。**不一致请立即删除文件，不要安装。**
+输出的哈希值必须与「各版本校验值」中对应版本的记录完全一致。**不一致请立即删除文件，不要安装。**
+
+## 官方下载渠道
+
+官方安装包的 URL 遵循固定模式，可自行把 `<版本>` 与平台替换为所需值：
+
+```
+https://download.deepseek.com/dsh-desk/bin/<平台>/deepseek-harness-<版本>-<平台>.<扩展名>
+
+平台：win-x64 → .exe      mac-arm64 → .dmg
+```
+
+例如：
+
+- Windows x64：<https://download.deepseek.com/dsh-desk/bin/win-x64/deepseek-harness-0.1.7-rc.2-win-x64.exe>
+- macOS arm64：<https://download.deepseek.com/dsh-desk/bin/mac-arm64/deepseek-harness-0.1.7-rc.2-mac-arm64.dmg>
+
+**能访问 `download.deepseek.com` 时，请优先使用官方地址，不要使用本镜像。**
+
+其他官方来源：
+
+- 上游仓库：<https://github.com/deepseek-ai/deepseek-harness>
+- 官方发布页：<https://github.com/deepseek-ai/deepseek-harness/releases>
+
+本镜像的安装包与官方原文 **SHA-256 逐字节一致**，可任选其一。本镜像可能滞后于官方最新版本，请以官方为准。
 
 ## 网络白名单与下载中断排查
 
@@ -102,11 +152,11 @@ github.com  →  HTTP 302  →  release-assets.githubusercontent.com  →  HTTP 
 
 ### 下载中断了怎么办
 
-两个安装包均支持 **HTTP Range 断点续传**（实测返回 `206 Partial Content`），大文件下载中途断开**无需重头开始**：
+安装包支持 **HTTP Range 断点续传**（实测返回 `206 Partial Content`），大文件下载中途断开**无需重头开始**：
 
 ```bash
 # -C - 表示从已下载的部分继续
-curl -L -C - -O https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.1.7-rc.2/deepseek-harness-0.1.7-rc.2-win-x64.exe
+curl -L -C - -O https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/<tag>/<文件名>
 ```
 
 浏览器下载同样可续传，重新点击下载通常会自动接着上次的进度。
@@ -134,17 +184,19 @@ curl -sIL --max-time 20 -o /dev/null -w "%{http_code}\n" \
 
 ## 版权与许可
 
-DeepSeek Harness 为开源项目，采用 **Apache License 2.0** 许可。
+DeepSeek Harness 上游项目采用 **MIT License** 许可。
 
 - 上游项目：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
-- 版权归属：Copyright © 2026 DeepSeek Harness
-- 许可证全文见本仓库 [LICENSE](./LICENSE) 文件，第三方组件声明见 [NOTICE](./NOTICE)
+- 版权归属：Copyright (c) 2026 DeepSeek
+- 许可证全文见本仓库 [LICENSE](./LICENSE) 文件，归属声明见 [NOTICE](./NOTICE)
 
-本仓库以**未经修改的原始二进制形式**再分发上述安装包，依 Apache License 2.0 第 4 条关于二进制形式再分发的要求：
+本仓库以**未经修改的原始二进制形式**再分发官方安装包，依 MIT License 的要求：
 
-- 已随附完整许可证全文（`LICENSE`）；
-- 已保留原始版权、专利、商标与归属声明（本节及 `NOTICE`）；
-- 未对文件作任何修改——SHA-256 校验值可独立验证这一点。
+- 已随附完整许可证全文，并保留原始版权声明（`LICENSE` 与 `NOTICE`）；
+- 未对文件作任何修改——SHA-256 校验值可独立验证这一点；
+- 安装包内打包的第三方组件遵循各自许可，详见上游仓库的 [THIRD_PARTY_NOTICES.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/THIRD_PARTY_NOTICES.md)。
+
+> 说明：安装包内部包含若干以 Apache License 2.0 等许可授权的第三方依赖（如打包进 Electron 运行时的 Node.js 生态组件）。这些属于上游的第三方声明范畴，**不代表 DeepSeek Harness 项目本身的许可**。
 
 若版权所有者认为本镜像不妥，请通过 Issue 联系，将立即移除相关文件。
 
