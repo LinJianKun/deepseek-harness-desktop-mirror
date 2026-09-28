@@ -52,6 +52,36 @@ log() { printf '%s\n' "$*" >&2; }
 need() { command -v "$1" >/dev/null || { log "缺少依赖: $1"; exit 1; }; }
 need gh; need curl; need shasum; need python3
 
+# 带断点续传的下载。安装包可达 400MB，普通 --retry 不续传，
+# 网络抖动时会整个失败（实测遇到 curl: (18) Transferred a partial file）。
+# 每轮失败后保留已下载部分，下一轮用 -C - 从断点继续。
+download_resumable() {
+  local url="$1" out="$2"
+  local attempt max_attempts=5 rc
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    # -C - 表示从 out 的现有长度续传；文件不存在时等价于全新下载
+    curl -fL -C - --connect-timeout 30 --max-time 3600 -o "$out" "$url"
+    rc=$?
+
+    if [ "$rc" -eq 0 ]; then
+      return 0
+    fi
+    # 退出码 33：服务器不支持 Range（文件已完整时也会出现），视为成功
+    if [ "$rc" -eq 33 ]; then
+      return 0
+    fi
+
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      log "      第 $attempt 次中断 (curl rc=$rc)，已下载 $(wc -c < "$out" 2>/dev/null || echo 0) 字节，5 秒后续传"
+      sleep 5
+    fi
+  done
+
+  log "      连续 $max_attempts 次失败"
+  return 1
+}
+
 # ---------- 读取上游发布列表 ----------
 log "==> 读取上游发布列表：$UPSTREAM_REPO"
 gh api "repos/$UPSTREAM_REPO/releases?per_page=100" > "$WORK/upstream.json"
@@ -119,6 +149,13 @@ NEW_ENTRIES="$WORK/new_entries.tsv"   # version|date|dmg_sha|exe_sha|dmg_size|ex
 SYNCED_VERSIONS="${SYNCED_VERSIONS:-./synced-versions.txt}"
 : > "$SYNCED_VERSIONS"
 
+# 区分"新建 release"与"重新发布（刷新 published_at）"，用于修正 Latest 指向
+NEW_VERSIONS="$WORK/new_versions.txt"
+REPUBLISHED_VERSIONS="$WORK/republished_versions.txt"
+: > "$NEW_VERSIONS"
+: > "$REPUBLISHED_VERSIONS"
+PUBLISH_MODE="touch"
+
 SYNCED=0
 
 while IFS='|' read -r version tag date; do
@@ -147,6 +184,14 @@ while IFS='|' read -r version tag date; do
     NEED_DOWNLOAD=1
   fi
 
+  # 区分本次是"新建 release"还是"重新发布已有 release"
+  # 后者会刷新 published_at，可能让旧版本被 GitHub 标为 Latest，需要事后修正
+  if [ "$NEED_DOWNLOAD" = "1" ] && ! has_release "$version"; then
+    PUBLISH_MODE="new"
+  else
+    PUBLISH_MODE="touch"
+  fi
+
   # 探测官方是否已为该版本提供二进制
   dmg_code="$(curl -sI --max-time 60 -o /dev/null -w '%{http_code}' "$DMG_URL" || echo 000)"
   exe_code="$(curl -sI --max-time 60 -o /dev/null -w '%{http_code}' "$EXE_URL" || echo 000)"
@@ -164,12 +209,17 @@ while IFS='|' read -r version tag date; do
 
   # ---- 下载并校验 ----
   if [ "$NEED_DOWNLOAD" = "1" ]; then
+    DL_OK=1
     for pair in "mac-arm64|$DMG|$DMG_URL" "win-x64|$EXE|$EXE_URL"; do
       arch="${pair%%|*}"; rest="${pair#*|}"; name="${rest%%|*}"; url="${rest#*|}"
       log "    下载 $name"
-      curl -fL --retry 3 --retry-delay 5 --max-time 1800 -o "$WORK/$name" "$url" \
-        || { log "    下载失败，跳过该版本"; NEED_DOWNLOAD=0; break; }
+      if ! download_resumable "$url" "$WORK/$name"; then
+        log "    下载失败，跳过该版本"
+        DL_OK=0
+        break
+      fi
     done
+    [ "$DL_OK" = "1" ] || { NEED_DOWNLOAD=0; }
 
     if [ -f "$WORK/$DMG" ] && [ -f "$WORK/$EXE" ]; then
       # 上传前先确认本地源文件哈希（若有）
@@ -226,9 +276,95 @@ EOF
   printf '%s|%s|%s|%s|%s|%s\n' \
     "$version" "$date" "$DMG_SHA" "$EXE_SHA" "$DMG_SIZE" "$EXE_SIZE" >> "$NEW_ENTRIES"
   echo "$version" >> "$SYNCED_VERSIONS"
+  case "$PUBLISH_MODE" in
+    new)  echo "$version" >> "$NEW_VERSIONS" ;;
+    touch) echo "$version" >> "$REPUBLISHED_VERSIONS" ;;
+  esac
   SYNCED=$((SYNCED + 1))
   DMG_SHA=""; EXE_SHA=""
 done < "$WORK/todo.tsv"
+
+# ---------- 修正 GitHub 的「latest release」指向 ----------
+# GitHub 用 published_at（发布时间）判断 latest，而不是版本号大小。
+# 回填旧版本会把它们的 published_at 推到最后，导致 GitHub 把旧版本标为 Latest。
+#
+# 实测结论（重要）：
+#   - 重新**上传资产**不会改变 published_at，因此无法用它修正 Latest；
+#   - gh release upload --clobber 在资产名不同时是**新增**而非替换，会留下垃圾资产；
+#   - 唯一可靠的修正方式是**删除并重建 release**（published_at 随之刷新）。
+# 代价是需要重新下载该版本的两个安装包，所以只在确有错位时才执行。
+republish_latest() {
+  local ver="$1"
+  local tag="v$ver"
+  local dmg="deepseek-harness-${ver}-mac-arm64.dmg"
+  local exe="deepseek-harness-${ver}-win-x64.exe"
+  local tmp before after
+  tmp="$(mktemp -d)"
+
+  log "    下载 $tag 的两个安装包（重建 release 需要重新上传）"
+  if ! download_resumable "$DOWNLOAD_BASE/mac-arm64/$dmg" "$tmp/$dmg" \
+    || ! download_resumable "$DOWNLOAD_BASE/win-x64/$exe" "$tmp/$exe"; then
+    log "    ⚠️ 下载失败，无法自动修正 Latest"
+    log "       请手动处理：删除并重建 $tag，或重跑 sync-upstream.sh --force $ver"
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  before="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || echo '未知')"
+
+  # 从实际下载的文件取真实大小，避免写死数值
+  local dsize esize
+  dsize="$(wc -c < "$tmp/$dmg" | tr -d ' ')"
+  esize="$(wc -c < "$tmp/$exe" | tr -d ' ')"
+
+  log "    重建 release $tag"
+  # 先删（连同 tag），再建；gh release create 会重建 tag 并重新上传资产
+  if ! gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag >/dev/null 2>&1; then
+    log "    ⚠️ 删除旧 release 失败，中止修正以免产生半成品"
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  if gh release create "$tag" "$tmp/$dmg" "$tmp/$exe" \
+      --repo "$REPO" \
+      --title "DeepSeek Harness Desktop $ver 安装包" \
+      --notes "DeepSeek Harness Desktop \`$ver\` 官方安装包副本（未经修改）。
+
+> 本仓库保留全部历史版本。最新版本见 README 的版本表格，或 Release 列表。
+
+| 文件 | 平台 | 大小 |
+| --- | --- | --- |
+| \`$dmg\` | macOS 13+ / Apple Silicon | $dsize B |
+| \`$exe\` | Windows 10/11 x64 | $esize B |
+
+**非官方镜像。** 官方来源：https://download.deepseek.com/dsh-desk/bin/
+上游项目：https://github.com/$UPSTREAM_REPO
+许可证：MIT（见仓库 LICENSE 文件）。" >/dev/null 2>&1; then
+    after="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || echo '未知')"
+    log "    GitHub latest: $before  →  $after"
+    [ "$after" = "$tag" ] && log "    ✅ 已指向最新版本" || log "    ⚠️ 仍未指向 $tag，请手动检查"
+    rm -rf "$tmp"
+    return 0
+  else
+    log "    ⚠️ 重建 release 失败，Latest 仍可能错位"
+    rm -rf "$tmp"
+    return 1
+  fi
+}
+
+LATEST_VERSION="$(head -1 "$WORK/upstream.tsv" | cut -d'|' -f1)"
+
+if [ -s "$REPUBLISHED_VERSIONS" ] \
+   && grep -qvxF "$LATEST_VERSION" "$REPUBLISHED_VERSIONS" \
+   && has_release "$LATEST_VERSION"; then
+  log ""
+  if [ "$DRY_RUN" = "1" ]; then
+    log "==> [dry-run] 本次会重新发布旧版本，实际运行时应把 Latest 修正为 v$LATEST_VERSION"
+  else
+    log "==> 本次重新发布了旧版本，修正 Latest 指向"
+    republish_latest "$LATEST_VERSION" || true
+  fi
+fi
 
 # ---------- 更新 README ----------
 if [ ! -s "$NEW_ENTRIES" ]; then
@@ -356,3 +492,31 @@ PY
 
 log ""
 log "==> 完成，共同步 $SYNCED 个版本"
+
+# ---------- 最终校验：GitHub 的 Latest 是否指向最新版本 ----------
+# GitHub 按 published_at（发布时间）而非版本号决定 Latest。
+# 任何"重新发布旧版本"的操作（回填、--force、release.sh 覆盖上传）
+# 都可能把旧版本推到最新位置，这里统一做一次检查。
+verify_latest() {
+  local want actual
+  want="v$(head -1 "$WORK/upstream.tsv" | cut -d'|' -f1)"
+  actual="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || echo '（无法获取）')"
+
+  if [ "$actual" = "$want" ]; then
+    log "    Latest 校验通过：$actual"
+  else
+    log ""
+    log "    ⚠️  Latest 指向不正确！"
+    log "        GitHub 认为最新 = $actual"
+    log "        语义最新版本     = $want"
+    log "        修正方法：重新发布 $want（刷新其 published_at）"
+    log "          gh release upload $want <两个安装包> --repo $REPO --clobber"
+    log "        或直接重跑一次：scripts/sync-upstream.sh --force ${want#v}"
+  fi
+}
+
+if [ "$DRY_RUN" != "1" ]; then
+  log ""
+  log "==> 校验 GitHub Latest 指向"
+  verify_latest
+fi
