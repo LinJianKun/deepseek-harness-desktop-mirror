@@ -1,0 +1,5 @@
+# 安装包二进制不入 git 历史，只作为 Release 资产上传
+*.dmg  binary
+*.exe  binary
+*.dmg  -diff
+*.exe  -diff
