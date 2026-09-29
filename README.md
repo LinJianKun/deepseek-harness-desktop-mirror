@@ -62,6 +62,7 @@ gh auth refresh -h github.com -s workflow
 <!-- VERSION_TABLE_START -->
 | 版本 | 发布日期 | 校验值 | 详情 |
 | --- | --- | --- | --- |
+| `0.2.0-rc.2` | 2026-09-29 | [SHA-256](#020-rc2) | [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/tag/v0.2.0-rc.2) |
 | `0.2.0-rc.1` | 2026-09-28 | [SHA-256](#020-rc1) | [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/tag/v0.2.0-rc.1) |
 | `0.1.7-rc.2` | 2026-09-24 | [SHA-256](#017-rc2) | [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/tag/v0.1.7-rc.2) |
 | `0.1.7-rc.1` | 2026-09-23 | [SHA-256](#017-rc1) | [Release](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/tag/v0.1.7-rc.1) |
@@ -72,6 +73,23 @@ gh auth refresh -h github.com -s workflow
 ## 各版本校验值
 
 <!-- VERSION_DETAILS_START -->
+<a id="020-rc2"></a>
+
+### 0.2.0-rc.2
+
+发布日期：2026-09-29
+
+```
+SHA-256
+7c32c459c403d8a035ac60600f240ed2025312f0a7afde283f454f30ec4ed96e  deepseek-harness-0.2.0-rc.2-mac-arm64.dmg
+d61cd8882f8b8a1251144320493ad27920d15139503eba2465b9579eee720cfc  deepseek-harness-0.2.0-rc.2-win-x64.exe
+```
+
+| 文件 | 平台 | 大小 | 下载 |
+| --- | --- | --- | --- |
+| `deepseek-harness-0.2.0-rc.2-mac-arm64.dmg` | macOS 13+ Apple Silicon | 353 MB | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.2/deepseek-harness-0.2.0-rc.2-mac-arm64.dmg) |
+| `deepseek-harness-0.2.0-rc.2-win-x64.exe` | Windows 10/11 x64 | 276 MB | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.2/deepseek-harness-0.2.0-rc.2-win-x64.exe) |
+
 <a id="020-rc1"></a>
 
 ### 0.2.0-rc.1
@@ -86,8 +104,8 @@ SHA-256
 
 | 文件 | 平台 | 大小 | 下载 |
 | --- | --- | --- | --- |
-| `deepseek-harness-0.2.0-rc.1-mac-arm64.dmg` | macOS 13+ Apple Silicon | 352 MB | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.1/deepseek-harness-0.2.0-rc.1-mac-arm64.dmg) |
-| `deepseek-harness-0.2.0-rc.1-win-x64.exe` | Windows 10/11 x64 | 275 MB | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.1/deepseek-harness-0.2.0-rc.1-win-x64.exe) |
+| `deepseek-harness-0.2.0-rc.1-mac-arm64.dmg` | macOS 13+ Apple Silicon | — | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.1/deepseek-harness-0.2.0-rc.1-mac-arm64.dmg) |
+| `deepseek-harness-0.2.0-rc.1-win-x64.exe` | Windows 10/11 x64 | — | [下载](https://github.com/LinJianKun/deepseek-harness-desktop-mirror/releases/download/v0.2.0-rc.1/deepseek-harness-0.2.0-rc.1-win-x64.exe) |
 
 <a id="017-rc2"></a>
 
